@@ -7,6 +7,39 @@ const field =
 
 const label = "mb-2 block text-xs font-semibold tracking-wide text-cream-100/60";
 
+const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID;
+
+type Status = "idle" | "sending" | "sent" | "error";
+
+function mailtoHref({
+  name,
+  org,
+  email,
+  model,
+  brief,
+}: {
+  name: string;
+  org: string;
+  email: string;
+  model: string;
+  brief: string;
+}) {
+  const subject = `Project enquiry — ${org || name || "New enquiry"}`;
+  const body = [
+    `Name: ${name}`,
+    `Organization: ${org}`,
+    `Email: ${email}`,
+    `Preferred engagement model: ${model}`,
+    "",
+    "Project brief:",
+    brief || "(not provided)",
+  ].join("\n");
+
+  return `mailto:${company.email}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
+}
+
 export function Contact({
   brief,
   setBrief,
@@ -18,27 +51,67 @@ export function Contact({
   const [email, setEmail] = useState("");
   const [org, setOrg] = useState("");
   const [model, setModel] = useState(engagementModels[1].name);
+  const [status, setStatus] = useState<Status>("idle");
 
-  /**
-   * No backend is wired up yet, so the form hands the enquiry to the visitor's
-   * mail client, addressed to the company inbox with everything filled in.
-   */
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const subject = `Project enquiry — ${org || name || "New enquiry"}`;
-    const body = [
-      `Name: ${name}`,
-      `Organization: ${org}`,
-      `Email: ${email}`,
-      `Preferred engagement model: ${model}`,
-      "",
-      "Project brief:",
-      brief || "(not provided)",
-    ].join("\n");
 
-    window.location.href = `mailto:${company.email}?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(body)}`;
+    // No Formspree id configured yet — fall back to the visitor's mail
+    // client, pre-filled, rather than losing the enquiry.
+    if (!FORMSPREE_ID) {
+      window.location.href = mailtoHref({ name, org, email, model, brief });
+      return;
+    }
+
+    setStatus("sending");
+    try {
+      const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          organization: org,
+          email,
+          engagementModel: model,
+          brief,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Formspree responded ${res.status}`);
+      setStatus("sent");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  if (status === "sent") {
+    return (
+      <Section id="contact" className="border-t border-cream-100/8">
+        <div className="ring-hairline mx-auto max-w-xl rounded-4xl bg-ink-900/60 p-10 text-center sm:p-14">
+          <span className="grid size-14 place-items-center rounded-full bg-teal-400/15 text-teal-300 mx-auto">
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m4 12.5 5 5L20 7" />
+            </svg>
+          </span>
+          <h2 className="mt-6 text-2xl font-extrabold tracking-tight text-cream-50">
+            Enquiry sent
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-cream-100/60">
+            Thanks{name ? `, ${name}` : ""} — we usually reply within one
+            business day with scope, model and a price.
+          </p>
+        </div>
+      </Section>
+    );
   }
 
   return (
@@ -168,14 +241,33 @@ export function Contact({
             />
           </div>
 
-          <Button type="submit" className="mt-7 w-full">
-            Send enquiry
-            <ArrowRight />
+          <Button
+            type="submit"
+            className="mt-7 w-full"
+            disabled={status === "sending"}
+          >
+            {status === "sending" ? "Sending…" : "Send enquiry"}
+            {status !== "sending" ? <ArrowRight /> : null}
           </Button>
 
-          <p className="mt-4 text-center text-xs text-cream-100/40">
-            Opens your mail client, addressed to {company.email}
-          </p>
+          {status === "error" ? (
+            <p className="mt-4 text-center text-xs text-red-300">
+              Something went wrong sending that —{" "}
+              <a
+                href={mailtoHref({ name, org, email, model, brief })}
+                className="underline underline-offset-2"
+              >
+                email us directly
+              </a>{" "}
+              instead.
+            </p>
+          ) : (
+            <p className="mt-4 text-center text-xs text-cream-100/40">
+              {FORMSPREE_ID
+                ? `Sent straight to ${company.email}`
+                : `Opens your mail client, addressed to ${company.email}`}
+            </p>
+          )}
         </form>
       </div>
     </Section>

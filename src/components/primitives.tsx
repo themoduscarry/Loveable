@@ -59,6 +59,7 @@ type ButtonProps = {
   className?: string;
   type?: "button" | "submit";
   onClick?: () => void;
+  disabled?: boolean;
 };
 
 export function Button({
@@ -68,9 +69,10 @@ export function Button({
   className = "",
   type = "button",
   onClick,
+  disabled = false,
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition duration-200 whitespace-nowrap";
+    "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition duration-200 whitespace-nowrap disabled:pointer-events-none disabled:opacity-50";
   const variants = {
     primary:
       "bg-cream-100 text-ink-950 hover:bg-white hover:-translate-y-0.5 shadow-lg shadow-black/30",
@@ -82,13 +84,13 @@ export function Button({
 
   if (href) {
     return (
-      <a href={href} className={cls}>
+      <a href={href} className={cls} aria-disabled={disabled || undefined}>
         {children}
       </a>
     );
   }
   return (
-    <button type={type} onClick={onClick} className={cls}>
+    <button type={type} onClick={onClick} disabled={disabled} className={cls}>
       {children}
     </button>
   );

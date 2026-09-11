@@ -81,8 +81,9 @@ export function StudioWorkspace({
     if (!prompt.trim()) return;
     setOutcome({ kind: "loading" });
 
+    let res: Response;
     try {
-      const res = await fetch("/api/generate", {
+      res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -92,44 +93,64 @@ export function StudioWorkspace({
           context: activeFile.content,
         }),
       });
-      const data = await res.json();
-
-      if (res.status === 402) {
-        setOutcome({ kind: "insufficient_credits", balance: data.balance, required: data.required });
-        return;
-      }
-      if (res.status === 503) {
-        setOutcome({ kind: "provider_not_configured", message: data.message });
-        return;
-      }
-      if (res.status === 422) {
-        setOutcome({
-          kind: "code_guard_failed",
-          diagnostics: data.diagnostics,
-          creditsCharged: data.creditsCharged,
-          newBalance: data.newBalance,
-        });
-        setBalance(data.newBalance);
-        return;
-      }
-      if (!res.ok) {
-        setOutcome({ kind: "error", message: data.error ?? `Request failed (${res.status})` });
-        return;
-      }
-
-      updateActiveFileContent(data.code);
-      setBalance(data.newBalance);
+    } catch {
       setOutcome({
-        kind: "passed",
-        model: data.model,
-        route: data.route,
+        kind: "error",
+        message: "Couldn't reach /api/generate — check your connection and try again.",
+      });
+      return;
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      // The response wasn't JSON at all — almost always the platform's own
+      // timeout/error page rather than anything our route returned, e.g. a
+      // generation that ran past the serverless function's time budget.
+      setOutcome({
+        kind: "error",
+        message:
+          res.status === 504
+            ? "The request timed out before finishing. Try a smaller, more localized edit."
+            : `Unexpected response from the server (status ${res.status}). Try again.`,
+      });
+      return;
+    }
+
+    if (res.status === 402) {
+      setOutcome({ kind: "insufficient_credits", balance: data.balance, required: data.required });
+      return;
+    }
+    if (res.status === 503) {
+      setOutcome({ kind: "provider_not_configured", message: data.message });
+      return;
+    }
+    if (res.status === 422) {
+      setOutcome({
+        kind: "code_guard_failed",
+        diagnostics: data.diagnostics,
         creditsCharged: data.creditsCharged,
         newBalance: data.newBalance,
       });
-      setPrompt("");
-    } catch {
-      setOutcome({ kind: "error", message: "Network error reaching /api/generate." });
+      setBalance(data.newBalance);
+      return;
     }
+    if (!res.ok) {
+      setOutcome({ kind: "error", message: data.error ?? `Request failed (${res.status})` });
+      return;
+    }
+
+    updateActiveFileContent(data.code);
+    setBalance(data.newBalance);
+    setOutcome({
+      kind: "passed",
+      model: data.model,
+      route: data.route,
+      creditsCharged: data.creditsCharged,
+      newBalance: data.newBalance,
+    });
+    setPrompt("");
   }
 
   return (

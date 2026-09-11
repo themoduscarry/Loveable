@@ -8,6 +8,11 @@ import { generate, ProviderNotConfiguredError } from "@/lib/aiProvider";
 import { runStaticAnalysis } from "@/lib/codeGuard";
 
 export const runtime = "nodejs";
+// This route does a full Claude call plus a real tsc compile in one
+// request/response cycle — comfortably past Vercel's default function
+// timeout. Raise the ceiling explicitly (60s is within the Hobby plan's
+// configurable max).
+export const maxDuration = 60;
 
 type GenerateBody = {
   projectId: string;

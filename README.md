@@ -1,45 +1,18 @@
-# Virtual Bridge Connect — Landing Page
+# Virtual Bridge Connect
 
-Vite + React + TypeScript + Tailwind v4 marketing site for Virtual Bridge
-Connect, LLC.
+One Next.js app, one Vercel project, serving the whole site:
 
-## Develop
+- **`/`** — the company marketing site (services, expertise, engagement models, contact)
+- **`/studio`** — VBC AI Studio, the browser-based AI dev studio product
 
-```bash
-npm install
-npm run dev
-```
+All the code lives in [`studio/`](studio/) — see [`studio/README.md`](studio/README.md)
+for setup, environment variables, and deployment.
 
-## Build
+## Why one app
 
-```bash
-npm run build   # outputs to dist/
-npm run preview # serve the production build locally
-```
-
-## Contact form
-
-The contact form posts to [Formspree](https://formspree.io). Without a form
-id configured it falls back to a `mailto:` link instead, so nothing breaks
-if you skip this step.
-
-1. Sign up free at formspree.io and create a form pointed at
-   `virtualbridgeconnect@gmail.com`.
-2. Copy the id from the endpoint it gives you
-   (`https://formspree.io/f/XXXXXXXX` → `XXXXXXXX`).
-3. Local dev: copy `.env.example` to `.env.local` and set
-   `VITE_FORMSPREE_ID`.
-4. Deployed site: add a repo secret named `VITE_FORMSPREE_ID` (Settings →
-   Secrets and variables → Actions) so the deploy workflow bakes it in.
-
-## Deployment
-
-Pushing to `main` builds and publishes to GitHub Pages automatically via
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). One-time
-setup in the repo: **Settings → Pages → Source → GitHub Actions**.
-
-A `public/CNAME` file points the deployed site at
-`virtualbridgeconnect.com` — remove it if that domain shouldn't be wired up
-yet, or update the DNS records at your registrar (a `CNAME` record to
-`<username>.github.io`, or the four GitHub Pages `A` records for an apex
-domain) once you're ready to go live there.
+This used to be two separate projects (a static Vite marketing site on
+GitHub Pages, a Next.js app on Vercel). They're now merged into a single
+Next.js app so the whole site — marketing and product — deploys together
+from one Vercel project, with the marketing site's pages and the Studio
+product's routes (auth, dashboard, IDE workspace) sharing one codebase,
+one design system, and one deploy pipeline.

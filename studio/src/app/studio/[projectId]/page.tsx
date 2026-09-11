@@ -13,7 +13,7 @@ export default async function StudioPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/studio/login");
 
   const { data: project, error } = await supabase
     .from("projects")

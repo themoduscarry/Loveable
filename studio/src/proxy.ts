@@ -2,28 +2,36 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/studio"];
+// The Studio product lives entirely under /studio/*. Within that,
+// /studio (its own landing page) and /studio/login are public; every
+// other /studio/* path — the dashboard and a project workspace
+// (/studio/<projectId>) — requires a session.
+const PUBLIC_STUDIO_PATHS = new Set(["/studio", "/studio/login"]);
+
+function isProtected(pathname: string): boolean {
+  if (!pathname.startsWith("/studio/")) return false;
+  return !PUBLIC_STUDIO_PATHS.has(pathname);
+}
 
 /**
  * Refreshes the Supabase session cookie on every navigation (the
  * documented pattern — this is what avoids the "two tabs refresh the
  * same expired token" race the @supabase/ssr README warns about) and
- * gates /dashboard and /studio behind a signed-in session.
+ * gates the Studio dashboard/workspace behind a signed-in session.
+ * The marketing site (everything outside /studio/*) is never gated.
  */
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
-
-  const isProtected = PROTECTED_PREFIXES.some((p) =>
-    request.nextUrl.pathname.startsWith(p),
-  );
+  const pathname = request.nextUrl.pathname;
+  const protectedRoute = isProtected(pathname);
 
   // No Supabase project configured yet: let marketing/auth pages render,
   // but don't try to gate protected routes against a session that can
   // never exist.
   if (!isSupabaseConfigured()) {
-    if (isProtected) {
+    if (protectedRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = "/login";
+      url.pathname = "/studio/login";
       url.searchParams.set("reason", "not-configured");
       return NextResponse.redirect(url);
     }
@@ -54,10 +62,10 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (isProtected && !user) {
+  if (protectedRoute && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    url.pathname = "/studio/login";
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 

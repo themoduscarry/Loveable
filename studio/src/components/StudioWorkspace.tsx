@@ -136,7 +136,7 @@ export function StudioWorkspace({
     <div className="flex h-screen flex-col bg-ink-950">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-cream-100/8 px-4">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-cream-100/50 transition hover:text-cream-50">
+          <Link href="/studio/dashboard" className="text-cream-100/50 transition hover:text-cream-50">
             ←
           </Link>
           <span className="text-sm font-semibold text-cream-50">{project.name}</span>

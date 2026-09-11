@@ -3,13 +3,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 // The Studio product lives entirely under /studio/*. Within that,
-// /studio (its own landing page) and /studio/login are public; every
-// other /studio/* path — the dashboard and a project workspace
-// (/studio/<projectId>) — requires a session.
+// /studio (its own landing page), /studio/login, and everything under
+// /studio/auth/* are public — the auth callback runs *before* a
+// session exists, so gating it behind one would make sign-in
+// impossible. Every other /studio/* path — the dashboard and a
+// project workspace (/studio/<projectId>) — requires a session.
 const PUBLIC_STUDIO_PATHS = new Set(["/studio", "/studio/login"]);
 
 function isProtected(pathname: string): boolean {
   if (!pathname.startsWith("/studio/")) return false;
+  if (pathname.startsWith("/studio/auth/")) return false;
   return !PUBLIC_STUDIO_PATHS.has(pathname);
 }
 

@@ -44,7 +44,10 @@ async function callDeepTier(req: GenerationRequest): Promise<GenerationResult> {
 
   const response = await client.messages.create({
     model,
-    max_tokens: 16000,
+    // A single-file edit rarely needs more than this; kept modest so a
+    // worst-case generation stays well inside the API route's 60s
+    // Vercel function budget alongside the Code Guard compile step.
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     output_config: { effort: "high" },
     messages: [
@@ -90,7 +93,7 @@ async function callFastTier(req: GenerationRequest): Promise<GenerationResult> {
 
   const response = await client.messages.create({
     model,
-    max_tokens: 16000,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     thinking: { type: "enabled", budget_tokens: 1024 },
     messages: [

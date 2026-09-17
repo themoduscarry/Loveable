@@ -8,6 +8,31 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+
+  // WebContainer (in-browser Node.js runtime) needs SharedArrayBuffer,
+  // which the browser only exposes when COOP/COEP headers are set.
+  // Only the workspace route (/studio/<uuid>) runs a WebContainer;
+  // other studio pages (login, dashboard) and the marketing site don't
+  // need these headers. The regex [0-9a-f-]+ matches Supabase UUIDs
+  // but not named routes like /studio/login or /studio/dashboard.
+  async headers() {
+    return [
+      {
+        source: "/studio/:id([0-9a-f-]+)",
+        headers: [
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "credentialless",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
+

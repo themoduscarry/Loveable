@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -24,6 +25,25 @@ type GenerateBody = {
 };
 
 export async function POST(request: Request) {
+  try {
+    return await handleGenerate(request);
+  } catch (err) {
+    // Anything that reaches here would otherwise be Next's default HTML
+    // 500 page, which the client can't parse and can't report. Log the
+    // whole thing for the platform logs, and hand the caller the message
+    // so a failure is diagnosable from the browser.
+    console.error("[/api/generate] unhandled error:", err);
+    return NextResponse.json(
+      {
+        error: "internal_error",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+async function handleGenerate(request: Request) {
   let body: GenerateBody;
   try {
     body = await request.json();
@@ -97,6 +117,18 @@ export async function POST(request: Request) {
           message: err.message,
         },
         { status: 503 },
+      );
+    }
+    // A rejected key, an unknown model, a rate limit — the provider's own
+    // refusals are not our bug, and collapsing them into a 500 hides the
+    // one detail that says which it was.
+    if (err instanceof Anthropic.APIError) {
+      return NextResponse.json(
+        {
+          error: "provider_error",
+          message: `The model provider rejected the request (HTTP ${err.status}): ${err.message}`,
+        },
+        { status: 502 },
       );
     }
     throw err;

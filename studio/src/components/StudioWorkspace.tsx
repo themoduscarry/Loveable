@@ -390,7 +390,12 @@ export function StudioWorkspace({
       return;
     }
     if (!res.ok) {
-      setOutcome({ kind: "error", message: data.error ?? `Request failed (${res.status})` });
+      // message is the human-readable half; error is a machine slug like
+      // "internal_error", which is no use on its own in the UI.
+      setOutcome({
+        kind: "error",
+        message: data.message ?? data.error ?? `Request failed (${res.status})`,
+      });
       return;
     }
 

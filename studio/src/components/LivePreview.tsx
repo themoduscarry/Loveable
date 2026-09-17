@@ -7,6 +7,8 @@ type LivePreviewProps = {
   url: string | null;
   /** Current boot phase of the WebContainer. */
   phase: ContainerPhase;
+  /** Why the container failed, when phase is "error". */
+  error?: string | null;
 };
 
 /**
@@ -14,15 +16,20 @@ type LivePreviewProps = {
  * Shows appropriate loading states while the container boots, installs
  * deps, and starts the dev server.
  */
-export function LivePreview({ url, phase }: LivePreviewProps) {
+export function LivePreview({ url, phase, error }: LivePreviewProps) {
   if (phase === "error") {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <div className="rounded-2xl bg-red-400/10 p-6 text-center">
+        <div className="max-w-md rounded-2xl bg-red-400/10 p-6">
           <p className="text-sm font-semibold text-red-400">
             WebContainer failed to start
           </p>
-          <p className="mt-2 text-xs text-cream-100/50">
+          {error ? (
+            <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-ink-950/60 p-2.5 font-mono text-[11px] whitespace-pre-wrap text-cream-100/70">
+              {error}
+            </pre>
+          ) : null}
+          <p className="mt-3 text-xs text-cream-100/50">
             Try refreshing the page. If the problem persists, your browser may
             not support WebContainers.
           </p>

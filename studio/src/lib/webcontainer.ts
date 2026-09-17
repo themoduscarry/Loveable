@@ -95,14 +95,29 @@ export async function bootAndStart(
     }
   });
 
-  // Install dependencies.
+  // Install dependencies. The container's npm traffic goes out through
+  // StackBlitz's proxy, so a failure here is usually a network/licensing
+  // problem rather than a bad package — keep the tail of the log, it's
+  // the only thing that says which.
   callbacks.onPhase("installing");
   const installProcess = await container.spawn("npm", ["install"]);
+
+  let installLog = "";
+  void installProcess.output.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        installLog += chunk;
+      },
+    }),
+  );
+
   const installExitCode = await installProcess.exit;
 
   if (installExitCode !== 0) {
     callbacks.onPhase("error");
-    throw new Error(`npm install exited with code ${installExitCode}`);
+    throw new Error(
+      `npm install exited with code ${installExitCode}.\n${installLog.trim().slice(-1500)}`,
+    );
   }
 
   // Start the Vite dev server (runs in the background — we hear about

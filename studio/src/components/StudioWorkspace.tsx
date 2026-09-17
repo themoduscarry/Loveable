@@ -131,6 +131,7 @@ export function StudioWorkspace({
   // WebContainer state
   const containerRef = useRef<WebContainerInstance | null>(null);
   const [containerPhase, setContainerPhase] = useState<ContainerPhase>("booting");
+  const [containerError, setContainerError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const runtimeErrorsRef = useRef<RuntimeError[]>([]);
 
@@ -146,6 +147,11 @@ export function StudioWorkspace({
 
   useEffect(() => {
     if (!containerSupported) {
+      setContainerError(
+        "This page isn't cross-origin isolated, so SharedArrayBuffer is unavailable. " +
+          "Check that /studio/<id> is served with Cross-Origin-Opener-Policy: same-origin " +
+          "and Cross-Origin-Embedder-Policy: credentialless, and that you're on Chrome or Edge.",
+      );
       setContainerPhase("error");
       return;
     }
@@ -173,8 +179,11 @@ export function StudioWorkspace({
             await writeContainerFile(container, file.path, file.content);
           }
         }
-      } catch {
-        if (!cancelled) setContainerPhase("error");
+      } catch (err) {
+        if (!cancelled) {
+          setContainerError(err instanceof Error ? err.message : String(err));
+          setContainerPhase("error");
+        }
       }
     }
 
@@ -412,7 +421,7 @@ export function StudioWorkspace({
 
         {/* Live preview */}
         <section className="min-w-0 bg-white">
-          <LivePreview url={previewUrl} phase={containerPhase} />
+          <LivePreview url={previewUrl} phase={containerPhase} error={containerError} />
         </section>
 
         {/* Prompt / Code Guard panel */}

@@ -123,10 +123,15 @@ async function handleGenerate(request: Request) {
     // refusals are not our bug, and collapsing them into a 500 hides the
     // one detail that says which it was.
     if (err instanceof Anthropic.APIError) {
+      // err.message is the whole JSON body stringified. The sentence meant
+      // for a human is one level in; fall back to the raw message if the
+      // body isn't shaped the way we expect.
+      const body = err.error as { error?: { message?: string } } | undefined;
+      const detail = body?.error?.message ?? err.message;
       return NextResponse.json(
         {
           error: "provider_error",
-          message: `The model provider rejected the request (HTTP ${err.status}): ${err.message}`,
+          message: `The model provider rejected the request (HTTP ${err.status}): ${detail}`,
         },
         { status: 502 },
       );

@@ -545,7 +545,7 @@ export function StudioWorkspace({
         </section>
 
         {/* Prompt / Code Guard panel */}
-        <aside className="flex min-h-0 flex-col border-l border-cream-100/8">
+        <aside className="flex min-h-0 min-w-0 flex-col border-l border-cream-100/8">
           <PaneHeader>
             <span className="font-mono text-[10px] tracking-[0.14em] text-cream-100/35 uppercase">
               Code Guard
@@ -669,7 +669,7 @@ function CodeGuardStatus({ outcome }: { outcome: GenerateOutcome }) {
       );
     case "error":
       return (
-        <div className="mt-3 rounded-2xl bg-red-400/10 p-4 text-sm text-red-400">
+        <div className="mt-3 rounded-2xl bg-red-400/10 p-4 text-sm break-words text-red-400">
           {outcome.message}
         </div>
       );

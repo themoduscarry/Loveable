@@ -39,14 +39,49 @@ export function LivePreview({ url, phase, error }: LivePreviewProps) {
   }
 
   if (!url) {
+    const steps = [
+      { key: "booting", label: "Booting sandbox" },
+      { key: "installing", label: "Installing dependencies" },
+      { key: "starting", label: "Starting dev server" },
+    ] as const;
+    const currentIndex = steps.findIndex((s) => s.key === phase);
+
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <div className="text-center">
-          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-teal-400/30 border-t-teal-400" />
-          <p className="mt-4 text-sm text-cream-100/50">
-            {phase === "booting" && "Booting WebContainer…"}
-            {phase === "installing" && "Installing dependencies…"}
-            {phase === "starting" && "Starting dev server…"}
+        <div className="w-full max-w-[220px]">
+          <div className="mx-auto size-7 animate-spin rounded-full border-2 border-teal-400/25 border-t-teal-400" />
+          <ul className="mt-5 space-y-2">
+            {steps.map((step, i) => {
+              const done = i < currentIndex;
+              const active = i === currentIndex;
+              return (
+                <li
+                  key={step.key}
+                  className={`flex items-center gap-2 text-xs transition ${
+                    active
+                      ? "text-cream-100/80"
+                      : done
+                        ? "text-cream-100/35"
+                        : "text-cream-100/20"
+                  }`}
+                >
+                  <span
+                    className={`size-1.5 shrink-0 rounded-full ${
+                      active
+                        ? "animate-pulse bg-teal-400"
+                        : done
+                          ? "bg-teal-400/40"
+                          : "bg-cream-100/15"
+                    }`}
+                  />
+                  {step.label}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 text-[11px] leading-relaxed text-cream-100/25">
+            First load installs React and Vite inside your browser — this takes
+            a few seconds.
           </p>
         </div>
       </div>

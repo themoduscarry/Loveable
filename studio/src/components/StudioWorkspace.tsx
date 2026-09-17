@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Monaco } from "@monaco-editor/react";
 import type { ModelTier } from "@/lib/modelRouter";
 import {
   bootAndStart,
@@ -57,6 +58,55 @@ type PendingCandidate = {
 
 /** How long Stage 3 waits for the preview to report a runtime error. */
 const STAGE3_CHECK_WINDOW_MS = 2500;
+
+/** Shared top bar for the editor and preview panes. */
+function PaneHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-cream-100/8 px-3">
+      {children}
+    </div>
+  );
+}
+
+/** Small pill showing whether the preview sandbox is up — Stage 3 needs it. */
+function ContainerBadge({ phase }: { phase: ContainerPhase }) {
+  const { dot, label } =
+    phase === "running"
+      ? { dot: "bg-green-400", label: "sandbox ready" }
+      : phase === "error"
+        ? { dot: "bg-red-400", label: "sandbox down" }
+        : { dot: "bg-amber-400 animate-pulse", label: "sandbox starting" };
+
+  return (
+    <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] text-cream-100/40">
+      <span className={`size-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Monaco's TypeScript worker has no React or node_modules types, so it
+ * flags ordinary JSX as broken — red squiggles under code that compiles
+ * fine. Code Guard Stage 2 runs a real `tsc` server-side against the full
+ * type graph, so the browser's half-informed semantic pass is pure noise.
+ * Syntax validation stays on: that part it gets right.
+ */
+function configureMonaco(monaco: Monaco) {
+  const ts = monaco.languages.typescript;
+  ts.typescriptDefaults.setCompilerOptions({
+    ...ts.typescriptDefaults.getCompilerOptions(),
+    jsx: ts.JsxEmit.ReactJSX,
+    target: ts.ScriptTarget.ES2020,
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    allowNonTsExtensions: true,
+    esModuleInterop: true,
+  });
+  ts.typescriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: true,
+    noSyntaxValidation: false,
+  });
+}
 
 const STARTER_FILES: FileEntry[] = [
   {
@@ -133,6 +183,7 @@ export function StudioWorkspace({
   const [containerPhase, setContainerPhase] = useState<ContainerPhase>("booting");
   const [containerError, setContainerError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewNonce, setPreviewNonce] = useState(0);
   const runtimeErrorsRef = useRef<RuntimeError[]>([]);
 
   // Code Guard Stage 1: diff buffer
@@ -375,7 +426,7 @@ export function StudioWorkspace({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[200px_1fr_1fr_360px]">
+      <div className="grid min-h-0 flex-1 grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_320px] overflow-hidden">
         {/* File tree */}
         <aside className="overflow-y-auto border-r border-cream-100/8 p-3">
           <p className="px-2 pb-2 font-mono text-[10px] tracking-[0.14em] text-cream-100/35 uppercase">
@@ -407,29 +458,85 @@ export function StudioWorkspace({
         </aside>
 
         {/* Editor */}
-        <main className="min-w-0 border-r border-cream-100/8">
-          <MonacoEditor
-            height="100%"
-            theme="vs-dark"
-            path={activeFile.path}
-            defaultLanguage="typescript"
-            value={activeFile.content}
-            onChange={(v) => updateActiveFileContent(v ?? "")}
-            options={{ fontSize: 13, minimap: { enabled: false }, padding: { top: 16 } }}
-          />
+        <main className="flex min-w-0 flex-col border-r border-cream-100/8">
+          <PaneHeader>
+            <span className="truncate font-mono text-[11px] text-cream-100/70">
+              {activeFile.path}
+            </span>
+          </PaneHeader>
+          <div className="min-h-0 flex-1">
+            <MonacoEditor
+              height="100%"
+              theme="vs-dark"
+              path={activeFile.path}
+              defaultLanguage="typescript"
+              value={activeFile.content}
+              beforeMount={configureMonaco}
+              onChange={(v) => updateActiveFileContent(v ?? "")}
+              options={{
+                fontSize: 13,
+                minimap: { enabled: false },
+                padding: { top: 16 },
+                scrollBeyondLastLine: false,
+                smoothScrolling: true,
+                renderLineHighlight: "none",
+                overviewRulerLanes: 0,
+                scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+              }}
+            />
+          </div>
         </main>
 
         {/* Live preview */}
-        <section className="min-w-0 bg-white">
-          <LivePreview url={previewUrl} phase={containerPhase} error={containerError} />
+        <section className="flex min-w-0 flex-col">
+          <PaneHeader>
+            <span className="truncate font-mono text-[11px] text-cream-100/45">
+              {previewUrl ?? "no preview yet"}
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPreviewNonce((n) => n + 1)}
+                disabled={!previewUrl}
+                title="Reload preview"
+                className="rounded-md px-1.5 py-0.5 text-cream-100/45 transition hover:bg-cream-100/8 hover:text-cream-50 disabled:pointer-events-none disabled:opacity-30"
+              >
+                ⟳
+              </button>
+              <a
+                href={previewUrl ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                title="Open preview in a new tab"
+                className={`rounded-md px-1.5 py-0.5 text-cream-100/45 transition hover:bg-cream-100/8 hover:text-cream-50 ${
+                  previewUrl ? "" : "pointer-events-none opacity-30"
+                }`}
+              >
+                ↗
+              </a>
+            </div>
+          </PaneHeader>
+          <div className="min-h-0 flex-1 p-3">
+            <div className="ring-hairline h-full overflow-hidden rounded-xl bg-ink-900/40">
+              <LivePreview
+                key={previewNonce}
+                url={previewUrl}
+                phase={containerPhase}
+                error={containerError}
+              />
+            </div>
+          </div>
         </section>
 
         {/* Prompt / Code Guard panel */}
         <aside className="flex min-h-0 flex-col border-l border-cream-100/8">
-          <div className="flex-1 overflow-y-auto p-4">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-cream-100/35 uppercase">
+          <PaneHeader>
+            <span className="font-mono text-[10px] tracking-[0.14em] text-cream-100/35 uppercase">
               Code Guard
-            </p>
+            </span>
+            <ContainerBadge phase={containerPhase} />
+          </PaneHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             <CodeGuardStatus outcome={outcome} />
           </div>
 

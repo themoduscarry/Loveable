@@ -223,12 +223,18 @@ export function StudioWorkspace({
           },
         });
 
-        if (!cancelled) {
-          containerRef.current = container;
-          // Sync starter files into the container.
-          for (const file of files) {
-            await writeContainerFile(container, file.path, file.content);
-          }
+        // Unmounted while the boot was still in flight. Only one
+        // WebContainer can exist per page, so this one has to go or the
+        // next mount can't boot at all.
+        if (cancelled) {
+          container.teardown();
+          return;
+        }
+
+        containerRef.current = container;
+        // Sync starter files into the container.
+        for (const file of files) {
+          await writeContainerFile(container, file.path, file.content);
         }
       } catch (err) {
         if (!cancelled) {
@@ -239,7 +245,12 @@ export function StudioWorkspace({
     }
 
     boot();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      containerRef.current?.teardown();
+      containerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerSupported]);
 

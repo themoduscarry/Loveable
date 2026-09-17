@@ -53,7 +53,8 @@ const TSCONFIG = {
  * running it server-side means Stage 2 works today, without waiting on
  * (or paying for) a WebContainers production license. Stage 3 (the
  * runtime/console listener) is the stage that actually needs a
- * browser-shaped sandbox — see src/app/studio/[projectId]/page.tsx.
+ * browser-shaped sandbox — it lives client-side in
+ * src/lib/webcontainer.ts, driven from src/components/StudioWorkspace.tsx.
  *
  * The temp workspace is created under the OS temp directory (not inside
  * the project) and gets a directory link back to this project's
